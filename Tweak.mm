@@ -4,14 +4,9 @@ __attribute__((constructor))
 static void initTweak() {
     const char *binary = "Frameworks/anogs.framework/anogs";
 
-    // الأوفستات الستة (تم تحويل الإزاحات إلى عناوين كاملة)
     uint64_t offsets[] = {
-        0x1000177C4,
-        0x10001F568,
-        0x100032C94,
-        0x1000376A4,
-        0x10004C9AC,
-        0x10004A130
+        0x1000177C4, 0x10001F568, 0x100032C94,
+        0x1000376A4, 0x10004C9AC, 0x10004A130
     };
 
     for (int i = 0; i < sizeof(offsets)/sizeof(offsets[0]); i++) {

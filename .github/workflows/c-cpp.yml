@@ -20,41 +20,46 @@ jobs:
 
       - name: Ensure libdobby.a (download or create stub)
         run: |
+          # تحميل المكتبة الحقيقية إن لم تكن موجودة
           if [ ! -f libdobby.a ]; then
-            echo "libdobby.a not found, trying to download..."
+            echo "محاولة تحميل libdobby.a من DobbyX..."
             curl -L -o libdobby.a "https://raw.githubusercontent.com/jmpews/DobbyX/master/libs/libdobby.a" || true
-            if [ ! -f libdobby.a ]; then
-              echo "Download failed, creating stub library..."
-              cat > dobby_stub.c << 'EOF'
-              #include <stdint.h>
-              #include <stdbool.h>
-              typedef struct {
-                uint64_t hook_vaddr;
-                uint64_t hook_size;
-                uint64_t code_vaddr;
-                uint64_t code_size;
-                uint64_t patched_vaddr;
-                uint64_t original_vaddr;
-                uint64_t instrument_vaddr;
-                uint64_t patch_size;
-                uint64_t patch_hash;
-                void *target_replace;
-                void *instrument_handler;
-              } StaticInlineHookBlock;
+          fi
 
-              int dobby_create_instrument_bridge(void *targetData) {
-                  return 0;
-              }
+          # إنشاء مكتبة وهمية في حال فشل التحميل
+          if [ ! -f libdobby.a ]; then
+            echo "التحميل فشل، إنشاء مكتبة وهمية (stub)..."
+            cat > dobby_stub.c << 'EOF'
+            #include <stdint.h>
+            #include <stdbool.h>
+            typedef struct {
+              uint64_t hook_vaddr;
+              uint64_t hook_size;
+              uint64_t code_vaddr;
+              uint64_t code_size;
+              uint64_t patched_vaddr;
+              uint64_t original_vaddr;
+              uint64_t instrument_vaddr;
+              uint64_t patch_size;
+              uint64_t patch_hash;
+              void *target_replace;
+              void *instrument_handler;
+            } StaticInlineHookBlock;
 
-              bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHookBlock *hookBlockRVA,
-                                            uint64_t funcRVA, void *funcData, uint64_t targetRVA, void *targetData,
-                                            uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) {
-                  return false;
-              }
-              EOF
-              clang -arch arm64 -c dobby_stub.c -o dobby_stub.o
-              ar rcs libdobby.a dobby_stub.o
-            fi
+            int dobby_create_instrument_bridge(void *targetData) {
+                return 0;
+            }
+
+            bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHookBlock *hookBlockRVA,
+                                          uint64_t funcRVA, void *funcData, uint64_t targetRVA, void *targetData,
+                                          uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) {
+                return false;
+            }
+            EOF
+            clang -arch arm64 -c dobby_stub.c -o dobby_stub.o
+            ar rcs libdobby.a dobby_stub.o
+          else
+            echo "تم العثور على libdobby.a (حقيقية أو محمّلة)."
           fi
 
       - name: Build dylib

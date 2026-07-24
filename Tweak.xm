@@ -1,23 +1,21 @@
 #import "PatchNonJB.h"
 
-%ctor {
-    // المسار الصحيح للثنائي داخل الإطار
+__attribute__((constructor))
+static void initTweak() {
     const char *binary = "Frameworks/anogs.framework/anogs";
 
-    // === تحضير الأوفستات (مرة واحدة) ===
-    // نستخدم العناوين الكاملة = الإزاحة + 0x100000000
-    InitOffsetForPatchHook(binary, 0x1000177C4, "1F2003D5");
-    InitOffsetForPatchHook(binary, 0x10001F568, "1F2003D5");
-    InitOffsetForPatchHook(binary, 0x100032C94, "1F2003D5");
-    InitOffsetForPatchHook(binary, 0x1000376A4, "1F2003D5");
-    InitOffsetForPatchHook(binary, 0x10004C9AC, "1F2003D5");
-    InitOffsetForPatchHook(binary, 0x10004A130, "1F2003D5");
+    // الأوفستات الستة (تم تحويل الإزاحات إلى عناوين كاملة)
+    uint64_t offsets[] = {
+        0x1000177C4,
+        0x10001F568,
+        0x100032C94,
+        0x1000376A4,
+        0x10004C9AC,
+        0x10004A130
+    };
 
-    // === تفعيل التعديلات ===
-    PatchOffset(binary, 0x1000177C4, "1F2003D5", true);
-    PatchOffset(binary, 0x10001F568, "1F2003D5", true);
-    PatchOffset(binary, 0x100032C94, "1F2003D5", true);
-    PatchOffset(binary, 0x1000376A4, "1F2003D5", true);
-    PatchOffset(binary, 0x10004C9AC, "1F2003D5", true);
-    PatchOffset(binary, 0x10004A130, "1F2003D5", true);
+    for (int i = 0; i < sizeof(offsets)/sizeof(offsets[0]); i++) {
+        InitOffsetForPatchHook(binary, offsets[i], "1F2003D5");
+        PatchOffset(binary, offsets[i], "1F2003D5", true);
+    }
 }

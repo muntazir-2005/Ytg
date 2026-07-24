@@ -21,24 +21,20 @@ jobs:
     runs-on: macos-14
 
     steps:
-      # 1. سحب الكود
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. تثبيت أداة التوقيع ldid
       - name: Install ldid
         run: brew install ldid
 
-      # 3. التحقق من وجود المكتبات المطلوبة (dobby)
-      - name: Verify required libraries
+      - name: Verify required library
         run: |
-          if [ ! -f libs/libdobby.a ]; then
-            echo "خطأ: ملف libs/libdobby.a غير موجود في المشروع"
+          if [ ! -f libdobby.a ]; then
+            echo "خطأ: libdobby.a غير موجود في جذر المستودع"
             exit 1
           fi
-          echo "جميع الملفات الأساسية موجودة."
+          echo "المكتبة موجودة."
 
-      # 4. بناء الـ dylib باستخدام Makefile المخصص
       - name: Build dylib
         run: |
           make clean
@@ -48,20 +44,18 @@ jobs:
             make
           fi
 
-      # 5. تجهيز المخرجات
       - name: Prepare artifacts
         run: |
           mkdir -p output
           if [ -f MyTweak.dylib ]; then
             cp MyTweak.dylib output/
           else
-            echo "خطأ: الملف MyTweak.dylib لم يتم العثور عليه"
+            echo "خطأ: MyTweak.dylib لم يتم إنشاؤه"
             exit 1
           fi
           echo "الملفات الناتجة:"
           ls -la output/
 
-      # 6. رفع الملف الناتج كـ artifact
       - name: Upload dylib artifact
         uses: actions/upload-artifact@v4
         with:

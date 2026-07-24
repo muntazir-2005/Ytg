@@ -15,25 +15,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          brew install cmake ldid
+      - name: Install ldid
+        run: brew install ldid
 
-      - name: Clone and build Dobby from source
+      - name: Get prebuilt libdobby.a from DobbyX
         run: |
-          git clone https://github.com/jmpews/Dobby.git
-          cd Dobby
-          mkdir build && cd build
-          cmake .. \
-            -G "Unix Makefiles" \
-            -DCMAKE_TOOLCHAIN_FILE=../cmake/ios.toolchain.cmake \
-            -DPLATFORM=OS64 \
-            -DDEPLOYMENT_TARGET=12.0 \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build . --target dobby_static -j$(sysctl -n hw.ncpu)
-          # المكتبة موجودة في build/libdobby.a
-          cp libdobby.a ../../libdobby.a
-          cd ../..
+          git clone --depth 1 https://github.com/jmpews/DobbyX.git
+          cp DobbyX/libs/libdobby.a libdobby.a
 
       - name: Build dylib
         run: make

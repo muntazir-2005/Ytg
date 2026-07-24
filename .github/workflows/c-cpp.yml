@@ -1,0 +1,62 @@
+name: Build Non-JB Tweak
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:        # يسمح بالتشغيل اليدوي
+
+jobs:
+  build:
+    runs-on: macos-13       # أو macos-12 (أحدث إصدار يدعم Xcode)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Theos
+        run: |
+          # استنساخ Theos مع الإصدار الجديد
+          git clone --recursive https://github.com/theos/theos.git /tmp/theos
+          echo "THEOS=/tmp/theos" >> $GITHUB_ENV
+          # تثبيت ldid إذا لم يكن مثبتاً
+          if ! command -v ldid &> /dev/null; then
+            brew install ldid
+          fi
+
+      - name: Cache Theos SDKs
+        uses: actions/cache@v4
+        with:
+          path: /tmp/theos/sdks
+          key: ${{ runner.os }}-theos-sdks-15.0
+
+      - name: Prepare SDK
+        # تحميل iOS SDK إذا لم تكن موجودة
+        run: |
+          mkdir -p /tmp/theos/sdks
+          if [ ! -f /tmp/theos/sdks/iPhoneOS15.0.sdk ]; then
+            # هنا رابط سحابي أو يمكنك توليد السيملنك من Xcode SDK
+            # أسهل طريقة: استخدام الـ SDK المثبتة في Xcode
+            ln -s $(xcrun --sdk iphoneos --show-sdk-path) /tmp/theos/sdks/iPhoneOS15.0.sdk
+          fi
+
+      - name: Build tweak
+        run: |
+          cd $GITHUB_WORKSPACE
+          make package FINALPACKAGE=1
+
+      - name: Upload dylib artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tweak-dylib
+          path: |
+            .theos/obj/MyNonJBTweak.dylib   # تأكد من تطابق الاسم مع TWEAK_NAME في Makefile
+          # إذا كنت تفضل تحميل الـ deb:
+          # path: packages/*.deb
+
+      - name: Upload package artifact (deb)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tweak-deb
+          path: packages/*.deb

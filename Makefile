@@ -8,7 +8,7 @@ CXXFLAGS      := -arch arm64 -isysroot $(SDK_PATH) -I. \
 
 LDFLAGS       := -arch arm64 -isysroot $(SDK_PATH) -dynamiclib \
                  -install_name @executable_path/Frameworks/$(TARGET_DYLIB) \
-                 -framework Foundation -L. -ldobby -Wl,-segalign,4000
+                 -framework Foundation -L. -ldobby -Wl,-segalign,4000 -lc++
 
 SOURCES       := Tweak.mm PatchNonJB.mm
 OBJS          := $(SOURCES:.mm=.o)

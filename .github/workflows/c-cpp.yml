@@ -1,62 +1,54 @@
-name: Build Non-JB Tweak
+name: Build Non-JB Tweak Dylib
 
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:        # يسمح بالتشغيل اليدوي
+  workflow_dispatch:      # يسمح لك بتشغيله يدوياً من تبويب Actions
 
 jobs:
   build:
-    runs-on: macos-13       # أو macos-12 (أحدث إصدار يدعم Xcode)
+    runs-on: macos-13     # أحدث بيئة macOS مستقرة تحتوي على Xcode
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Theos
+      - name: Setup build environment
         run: |
-          # استنساخ Theos مع الإصدار الجديد
-          git clone --recursive https://github.com/theos/theos.git /tmp/theos
-          echo "THEOS=/tmp/theos" >> $GITHUB_ENV
-          # تثبيت ldid إذا لم يكن مثبتاً
+          # التأكد من توفر أدوات سطر الأوامر
+          if ! xcode-select -p &> /dev/null; then
+            echo "Xcode CLI tools مفقودة، جاري التثبيت..."
+            sudo xcode-select --install || true
+          fi
+          
+          # تثبيت ldid لتوقيع الـ dylib
           if ! command -v ldid &> /dev/null; then
+            echo "ldid غير موجود، جاري التثبيت..."
             brew install ldid
           fi
 
-      - name: Cache Theos SDKs
-        uses: actions/cache@v4
-        with:
-          path: /tmp/theos/sdks
-          key: ${{ runner.os }}-theos-sdks-15.0
-
-      - name: Prepare SDK
-        # تحميل iOS SDK إذا لم تكن موجودة
+      - name: Verify dependencies
         run: |
-          mkdir -p /tmp/theos/sdks
-          if [ ! -f /tmp/theos/sdks/iPhoneOS15.0.sdk ]; then
-            # هنا رابط سحابي أو يمكنك توليد السيملنك من Xcode SDK
-            # أسهل طريقة: استخدام الـ SDK المثبتة في Xcode
-            ln -s $(xcrun --sdk iphoneos --show-sdk-path) /tmp/theos/sdks/iPhoneOS15.0.sdk
+          # التأكد من وجود المكتبات المطلوبة
+          if [ ! -f libs/libdobby.a ]; then
+            echo "خطأ: الملف libs/libdobby.a غير موجود في المشروع!"
+            exit 1
           fi
+          echo "جميع الملفات الأساسية موجودة."
 
       - name: Build tweak
         run: |
           cd $GITHUB_WORKSPACE
-          make package FINALPACKAGE=1
+          make clean
+          make
+          # عرض الملف الناتج للتأكيد
+          ls -la MyTweak.dylib
 
       - name: Upload dylib artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tweak-dylib
-          path: |
-            .theos/obj/MyNonJBTweak.dylib   # تأكد من تطابق الاسم مع TWEAK_NAME في Makefile
-          # إذا كنت تفضل تحميل الـ deb:
-          # path: packages/*.deb
-
-      - name: Upload package artifact (deb)
-        uses: actions/upload-artifact@v4
-        with:
-          name: tweak-deb
-          path: packages/*.deb
+          name: MyTweak-dylib
+          path: MyTweak.dylib
+          if-no-files-found: error   # يفشل إذا لم يتم العثور على الملف

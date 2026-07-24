@@ -20,46 +20,26 @@ jobs:
 
       - name: Ensure libdobby.a (download or create stub)
         run: |
-          # تحميل المكتبة الحقيقية إن لم تكن موجودة
-          if [ ! -f libdobby.a ]; then
-            echo "محاولة تحميل libdobby.a من DobbyX..."
-            curl -L -o libdobby.a "https://raw.githubusercontent.com/jmpews/DobbyX/master/libs/libdobby.a" || true
-          fi
+          # محاولة التحميل مع إضافة -f ليفشل صراحة إذا كان الرابط معطوب
+          curl -sfL -o libdobby.a "https://raw.githubusercontent.com/jmpews/DobbyX/master/libs/libdobby.a" || true
 
-          # إنشاء مكتبة وهمية في حال فشل التحميل
-          if [ ! -f libdobby.a ]; then
-            echo "التحميل فشل، إنشاء مكتبة وهمية (stub)..."
-            cat > dobby_stub.c << 'EOF'
-            #include <stdint.h>
-            #include <stdbool.h>
-            typedef struct {
-              uint64_t hook_vaddr;
-              uint64_t hook_size;
-              uint64_t code_vaddr;
-              uint64_t code_size;
-              uint64_t patched_vaddr;
-              uint64_t original_vaddr;
-              uint64_t instrument_vaddr;
-              uint64_t patch_size;
-              uint64_t patch_hash;
-              void *target_replace;
-              void *instrument_handler;
-            } StaticInlineHookBlock;
-
-            int dobby_create_instrument_bridge(void *targetData) {
-                return 0;
-            }
-
-            bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHookBlock *hookBlockRVA,
-                                          uint64_t funcRVA, void *funcData, uint64_t targetRVA, void *targetData,
-                                          uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) {
-                return false;
-            }
-          EOF
-            clang -arch arm64 -c dobby_stub.c -o dobby_stub.o
+          # التأكد من أن الملف موجود وأنه أرشيف برمجي صالح وليس صفحة HTML
+          if [ ! -f libdobby.a ] || ! file libdobby.a | grep -q "archive"; then
+            echo "التحميل فشل أو الرابط معطوب، سيتم إنشاء مكتبة وهمية (C++ Stub)..."
+            rm -f libdobby.a
+            
+            # إنشاء ملف C++ Stub باستخدام echo لتجنب مشاكل المسافات مع EOF في YAML
+            echo '#include <stdint.h>' > dobby_stub.cpp
+            echo '#include <stdbool.h>' >> dobby_stub.cpp
+            echo 'typedef struct { uint64_t hook_vaddr; uint64_t hook_size; uint64_t code_vaddr; uint64_t code_size; uint64_t patched_vaddr; uint64_t original_vaddr; uint64_t instrument_vaddr; uint64_t patch_size; uint64_t patch_hash; void *target_replace; void *instrument_handler; } StaticInlineHookBlock;' >> dobby_stub.cpp
+            echo 'int dobby_create_instrument_bridge(void *targetData) { return 0; }' >> dobby_stub.cpp
+            echo 'bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHookBlock *hookBlockRVA, uint64_t funcRVA, void *funcData, uint64_t targetRVA, void *targetData, uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) { return false; }' >> dobby_stub.cpp
+            
+            # البناء باستخدام clang++
+            clang++ -arch arm64 -c dobby_stub.cpp -o dobby_stub.o
             ar rcs libdobby.a dobby_stub.o
           else
-            echo "تم العثور على libdobby.a (حقيقية أو محمّلة)."
+            echo "تم العثور على libdobby.a الأصلية وصالحة للاستخدام."
           fi
 
       - name: Build dylib

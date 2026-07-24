@@ -31,19 +31,21 @@ jobs:
           fi
 
           # 2. إنشاء ملف Objective-C++ (.mm) يحتوي على نفس الدوال المطلوبة
-          # (استخدمنا echo لتجنب أي مشاكل متعلقة بالمسافات في YAML)
           echo '#include <stdint.h>' > DobbyStub.mm
           echo '#include <stdbool.h>' >> DobbyStub.mm
           echo 'typedef struct { uint64_t hook_vaddr; uint64_t hook_size; uint64_t code_vaddr; uint64_t code_size; uint64_t patched_vaddr; uint64_t original_vaddr; uint64_t instrument_vaddr; uint64_t patch_size; uint64_t patch_hash; void *target_replace; void *instrument_handler; } StaticInlineHookBlock;' >> DobbyStub.mm
           echo 'bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHookBlock *hookBlockRVA, uint64_t funcRVA, void *funcData, uint64_t targetRVA, void *targetData, uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) { return false; }' >> DobbyStub.mm
           echo 'int dobby_create_instrument_bridge(void *targetData) { return 0; }' >> DobbyStub.mm
 
-          # 3. ترجمة الملف باستخدام clang++ لإنشاء الرموز بصيغة C++ (Mangled)
-          clang++ -arch arm64 -c DobbyStub.mm -o DobbyStub.o
+          # 3. استخراج مسار iOS SDK لضمان بناء الملف لنظام iOS وليس macOS
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
 
-          # 4. حقن هذه الرموز مباشرة داخل libdobby.a
+          # 4. ترجمة الملف باستخدام clang++ مع تحديد أنه لـ iOS (isysroot)
+          clang++ -arch arm64 -isysroot $SDK_PATH -miphoneos-version-min=14.0 -c DobbyStub.mm -o DobbyStub.o
+
+          # 5. حقن هذه الرموز مباشرة داخل libdobby.a
           ar qs libdobby.a DobbyStub.o
-          echo "تم حقن الرموز المطلوبة بنجاح!"
+          echo "تم حقن الرموز المطلوبة بنجاح وتتوافق الآن مع iOS!"
 
       - name: Build dylib
         run: make

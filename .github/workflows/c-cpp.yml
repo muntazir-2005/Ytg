@@ -55,7 +55,7 @@ jobs:
                                           uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) {
                 return false;
             }
-            EOF
+          EOF
             clang -arch arm64 -c dobby_stub.c -o dobby_stub.o
             ar rcs libdobby.a dobby_stub.o
           else

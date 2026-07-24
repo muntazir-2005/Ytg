@@ -6,15 +6,6 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
-    inputs:
-      build_type:
-        description: 'نوع البناء'
-        required: true
-        default: 'release'
-        type: choice
-        options:
-          - release
-          - debug
 
 jobs:
   build:
@@ -24,37 +15,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install ldid
-        run: brew install ldid
-
-      - name: Verify required library
+      - name: Install dependencies
         run: |
-          if [ ! -f libdobby.a ]; then
-            echo "خطأ: libdobby.a غير موجود في جذر المستودع"
-            exit 1
-          fi
-          echo "المكتبة موجودة."
+          brew install cmake ldid
+
+      - name: Clone and build Dobby from source
+        run: |
+          git clone https://github.com/jmpews/Dobby.git
+          cd Dobby
+          mkdir build && cd build
+          cmake .. \
+            -G "Unix Makefiles" \
+            -DCMAKE_TOOLCHAIN_FILE=../cmake/ios.toolchain.cmake \
+            -DPLATFORM=OS64 \
+            -DDEPLOYMENT_TARGET=12.0 \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --target dobby_static -j$(sysctl -n hw.ncpu)
+          # المكتبة موجودة في build/libdobby.a
+          cp libdobby.a ../../libdobby.a
+          cd ../..
 
       - name: Build dylib
-        run: |
-          make clean
-          if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
-            make DEBUG=1
-          else
-            make
-          fi
+        run: make
 
       - name: Prepare artifacts
         run: |
           mkdir -p output
-          if [ -f MyTweak.dylib ]; then
-            cp MyTweak.dylib output/
-          else
-            echo "خطأ: MyTweak.dylib لم يتم إنشاؤه"
-            exit 1
-          fi
-          echo "الملفات الناتجة:"
-          ls -la output/
+          cp MyTweak.dylib output/
 
       - name: Upload dylib artifact
         uses: actions/upload-artifact@v4

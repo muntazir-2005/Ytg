@@ -25,15 +25,17 @@ jobs:
 
           # التأكد من أن الملف موجود وأنه أرشيف برمجي صالح وليس صفحة HTML
           if [ ! -f libdobby.a ] || ! file libdobby.a | grep -q "archive"; then
-            echo "التحميل فشل أو الرابط معطوب، سيتم إنشاء مكتبة وهمية (C++ Stub)..."
+            echo "التحميل فشل أو الرابط معطوب، سيتم إنشاء مكتبة وهمية (Stub)..."
             rm -f libdobby.a
             
-            # إنشاء ملف C++ Stub باستخدام echo لتجنب مشاكل المسافات مع EOF في YAML
+            # إنشاء ملف C++ Stub باستخدام echo وإضافة extern "C" بداخلها
             echo '#include <stdint.h>' > dobby_stub.cpp
             echo '#include <stdbool.h>' >> dobby_stub.cpp
+            echo 'extern "C" {' >> dobby_stub.cpp
             echo 'typedef struct { uint64_t hook_vaddr; uint64_t hook_size; uint64_t code_vaddr; uint64_t code_size; uint64_t patched_vaddr; uint64_t original_vaddr; uint64_t instrument_vaddr; uint64_t patch_size; uint64_t patch_hash; void *target_replace; void *instrument_handler; } StaticInlineHookBlock;' >> dobby_stub.cpp
             echo 'int dobby_create_instrument_bridge(void *targetData) { return 0; }' >> dobby_stub.cpp
             echo 'bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHookBlock *hookBlockRVA, uint64_t funcRVA, void *funcData, uint64_t targetRVA, void *targetData, uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) { return false; }' >> dobby_stub.cpp
+            echo '}' >> dobby_stub.cpp
             
             # البناء باستخدام clang++
             clang++ -arch arm64 -c dobby_stub.cpp -o dobby_stub.o
@@ -41,6 +43,31 @@ jobs:
           else
             echo "تم العثور على libdobby.a الأصلية وصالحة للاستخدام."
           fi
+
+      - name: Fix C++ Name Mangling for Dobby (Auto-Patch Source Code)
+        run: |
+          # 1. إذا كان لديك ملف dobby.h في المستودع، سنقوم بتغليفه بـ extern "C" تلقائياً
+          if [ -f "dobby.h" ]; then
+            echo "تعديل dobby.h لدعم Objective-C++..."
+            echo '#ifdef __cplusplus' > dobby_temp.h
+            echo 'extern "C" {' >> dobby_temp.h
+            echo '#endif' >> dobby_temp.h
+            cat dobby.h >> dobby_temp.h
+            echo '#ifdef __cplusplus' >> dobby_temp.h
+            echo '}' >> dobby_temp.h
+            echo '#endif' >> dobby_temp.h
+            mv dobby_temp.h dobby.h
+          fi
+
+          # 2. إذا كنت كاتب الدوال يدوياً داخل ملفات .mm، سنقوم بإضافة extern "C" قبلها
+          for file in *.mm; do
+            if [ -f "$file" ]; then
+              echo "فحص وتعديل $file إذا لزم الأمر..."
+              # استخدام sed لإضافة extern "C" قبل تعريف الدوال المطلوبة
+              sed -i '' 's/bool dobby_static_inline_hook/extern "C" bool dobby_static_inline_hook/g' "$file"
+              sed -i '' 's/int dobby_create_instrument_bridge/extern "C" int dobby_create_instrument_bridge/g' "$file"
+            fi
+          done
 
       - name: Build dylib
         run: make

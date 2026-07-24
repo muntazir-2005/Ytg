@@ -1,3 +1,6 @@
+#import <Foundation/Foundation.h>
+
+// ... باقي محتوى PatchNonJB.h ...
 #include "dobby.h"
 //#import "../Utils/MethodObfuscation.h"
 

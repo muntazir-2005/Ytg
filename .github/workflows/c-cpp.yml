@@ -22,23 +22,23 @@ jobs:
           git clone --depth 1 https://github.com/jmpews/Dobby.git
           cd Dobby
 
-          # 2. تحديد SDK والـ Compiler
+          # 2. تحديد SDK
           export SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-          export CC=$(xcrun --sdk iphoneos -f clang)
-          export CXX=$(xcrun --sdk iphoneos -f clang++)
 
-          # 3. توليد مشروع Xcode باستخدام CMake مع إعدادات iOS
+          # 3. تكوين المشروع مع تحديد المعالج arm64 وتجاوز فحص البيئة
           mkdir build && cd build
           cmake .. -G Xcode \
             -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_SYSTEM_PROCESSOR=arm64 \
             -DCMAKE_OSX_SYSROOT=$SDK_PATH \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=$CC \
-            -DCMAKE_CXX_COMPILER=$CXX
+            -DCMAKE_C_COMPILER=$(xcrun --sdk iphoneos -f clang) \
+            -DCMAKE_CXX_COMPILER=$(xcrun --sdk iphoneos -f clang++) \
+            -DBUILD_TESTING=OFF
 
-          # 4. بناء المكتبة الثابتة
+          # 4. بناء المكتبة الثابتة (الهدف dobby_static)
           xcodebuild -project Dobby.xcodeproj \
             -scheme dobby_static \
             -sdk iphoneos \
@@ -46,7 +46,7 @@ jobs:
             -arch arm64 \
             CODE_SIGNING_ALLOWED=NO
 
-          # 5. نسخ libdobby.a إلى جذر المشروع
+          # 5. نسخ المكتبة الناتجة
           cp Release-iphoneos/libdobby.a ../../libdobby.a
           cd ../..
 

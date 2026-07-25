@@ -1,3 +1,4 @@
+#import <Foundation/Foundation.h>
 #include "dobby.h"
 //#import "../Utils/MethodObfuscation.h"
 

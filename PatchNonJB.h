@@ -5,15 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// =============================================
-// تعريف الهيكل والدوال الخاصة بـ PatchNonJB
-// (موجودة في libdobby.a)
-// =============================================
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+// تعريف الهيكل فقط (بدون extern "C" حوله)
 typedef struct {
   uint64_t hook_vaddr;
   uint64_t hook_size;
@@ -28,6 +20,7 @@ typedef struct {
   void *instrument_handler;
 } StaticInlineHookBlock;
 
+// إعلانات الدوال (بدون extern "C" لتتطابق مع أسماء C++ المحتملة في libdobby.a)
 int dobby_create_instrument_bridge(void *targetData);
 
 bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock,
@@ -40,16 +33,9 @@ bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock,
                               void *patchBytes,
                               int patchSize);
 
-#ifdef __cplusplus
-}
-#endif
-
-// =============================================
-// دوال الواجهة العامة التي يستخدمها Tweak.mm
-// =============================================
-
+// دوال الواجهة
 NSString* InitOffsetForPatchHook(const char* machoPath, uint64_t vaddr, const char* patch);
 BOOL PatchOffset(const char* machoPath, uint64_t vaddr, const char* patch, bool isOn);
 void* HookOffset(const char* machoPath, uint64_t vaddr, void* replace);
 
-#endif // PATCHNONJB_H
+#endif

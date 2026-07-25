@@ -42,7 +42,7 @@ jobs:
                                             uint64_t funcRVA, void *funcData, uint64_t targetRVA, void *targetData,
                                             uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) { return false; }
             }
-            EOF
+          EOF
             clang++ -arch arm64 -c dobby_stub.cpp -o dobby_stub.o
             ar rcs libdobby.a dobby_stub.o
           else

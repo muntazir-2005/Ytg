@@ -1,38 +1,41 @@
-# Makefile لبناء MyTweak.dylib (Non-Jailbreak) باستخدام libdobby.a الحقيقية
-# المتطلبات: Tweak.mm, PatchNonJB.mm, libdobby.a, dobby.h, ESP/mahoa.h
+# Makefile for Non-Jailbreak Tweak (dylib only)
+# يعتمد على Theos لكن لا يثبت أي شيء في النظام
 
-TARGET_DYLIB  := MyTweak.dylib
-SDK_PATH      := $(shell xcrun --sdk iphoneos --show-sdk-path)
-CLANG         := $(shell xcrun --sdk iphoneos --find clang)
-LDID          := ldid
+TARGET := iphone:clang:latest:15.0
+ARCHS := arm64 arm64e
+TARGET_CODESIGN := -
+THEOS_PACKAGE_SCHEME := rootless
 
-# أعلام التجميع فقط (C++ / Objective-C++)
-CXXFLAGS      := -arch arm64 -isysroot $(SDK_PATH) -I. \
-                 -Wno-incomplete-implementation -Wno-deprecated-declarations \
-                 -Wno-unused-function -Wno-unused-variable -Wno-format
+# لا نريد إنتاج حزمة .deb، فقط dylib
+_NO_DEB = 1
 
-# أعلام الرابط للمكتبة الديناميكية
-LDFLAGS       := -arch arm64 -isysroot $(SDK_PATH) -dynamiclib \
-                 -install_name @executable_path/Frameworks/$(TARGET_DYLIB) \
-                 -framework Foundation -L. -ldobby -lc++ -Wl,-segalign,4000
+include $(THEOS)/makefiles/common.mk
+
+TWEAK_NAME := MyTweak
 
 # ملفات المصدر
-SOURCES       := Tweak.mm PatchNonJB.mm
-OBJECTS       := $(SOURCES:.mm=.o)
+MyTweak_FILES := Tweak.xm PatchNonJB.mm
 
-# الأهداف
-.PHONY: all clean
+# أعلام المترجم
+MyTweak_CFLAGS := -I. \
+	-Wno-incomplete-implementation -Wno-deprecated-declarations \
+	-Wno-unused-function -Wno-unused-variable -Wno-format
 
-all: $(TARGET_DYLIB)
+# ربط المكتبات: libdobby.a (الموجودة في الجذر) و libc++
+MyTweak_LDFLAGS := -L. -ldobby -lc++ -Wl,-segalign,4000
 
-$(TARGET_DYLIB): $(OBJECTS)
-	$(CLANG) $(OBJECTS) -o $@ $(LDFLAGS)
-	@echo "==> توقيع $@..."
-	$(LDID) -S $@
-	@echo "==> تم البناء بنجاح: $@"
+# الأطر المطلوبة
+MyTweak_FRAMEWORKS := Foundation
 
-%.o: %.mm
-	$(CLANG) $(CXXFLAGS) -c $< -o $@
+# مسار التثبيت الافتراضي (لن يُستخدم لأننا لن ننتج deb)
+MyTweak_INSTALL_PATH := /var/jb/Library/MobileSubstrate/DynamicLibraries
 
-clean:
-	rm -f $(OBJECTS) $(TARGET_DYLIB)
+include $(THEOS_MAKE_PATH)/tweak.mk
+
+# هدف إضافي: استخراج dylib فقط (اختياري)
+after-build::
+	@echo "==> تم بناء التعديل بنجاح (Non-JB)."
+	@echo "==> الملف الجاهز للحقن: .theos/obj/MyTweak.dylib"
+	@mkdir -p output
+	cp .theos/obj/MyTweak.dylib output/
+	@echo "==> تم نسخ dylib إلى مجلد output/"

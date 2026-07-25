@@ -11,9 +11,8 @@ LDFLAGS       := -arch arm64 -isysroot $(SDK_PATH) -dynamiclib \
                  -install_name @executable_path/Frameworks/$(TARGET_DYLIB) \
                  -framework Foundation -lc++ -Wl,-segalign,4000
 
-# أضف dobby_real.c هنا
-SOURCES       := Tweak.mm PatchNonJB.mm dobby_real.c
-OBJECTS       := $(patsubst %.mm,%.o,$(patsubst %.c,%.o,$(SOURCES)))
+SOURCES       := Tweak.mm PatchNonJB.mm dobby_real.mm
+OBJECTS       := $(SOURCES:.mm=.o)
 
 .PHONY: all clean
 
@@ -24,9 +23,6 @@ $(TARGET_DYLIB): $(OBJECTS)
 	$(LDID) -S $@
 
 %.o: %.mm
-	$(CLANG) $(CXXFLAGS) -c $< -o $@
-
-%.o: %.c
 	$(CLANG) $(CXXFLAGS) -c $< -o $@
 
 clean:

@@ -1,20 +1,21 @@
+#ifndef PATCHNONJB_H
+#define PATCHNONJB_H
+
 #import <Foundation/Foundation.h>
+#include "dobby.h"   // يوفر StaticInlineHookBlock والدوال الأساسية
 
-// ... باقي محتوى PatchNonJB.h ...
-#include "dobby.h"
-//#import "../Utils/MethodObfuscation.h"
+// =============================================
+// دوال الواجهة العامة التي يستخدمها Tweak.mm
+// =============================================
 
-
-int dobby_create_instrument_bridge(void *targetData);
-
-bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHookBlock *hookBlockRVA, uint64_t funcRVA,
-                              void *funcData, uint64_t targetRVA, void *targetData, uint64_t InstrumentBridgeRVA,
-                              void *patchBytes, int patchSize);
-
+// يُجهز ملف Mach-O للمرة الأولى ويحفظ نسخة معدلة (مرة واحدة لكل أوفست)
 NSString* InitOffsetForPatchHook(const char* machoPath, uint64_t vaddr, const char* patch);
 
+// يُفعّل/يُعطّل تعديل البايتات في الذاكرة (isOn = true للتفعيل)
 BOOL PatchOffset(const char* machoPath, uint64_t vaddr, const char* patch, bool isOn);
 
+// يستبدل الدالة الأصلية بـ replace (للهوك الكامل)
+// يُرجع عنوان الدالة الأصلية للحفظ
 void* HookOffset(const char* machoPath, uint64_t vaddr, void* replace);
 
-
+#endif // PATCHNONJB_H

@@ -13,8 +13,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install ldid
-        run: brew install ldid
+      - name: Install dependencies
+        run: brew install cmake ldid
 
       - name: Build real libdobby.a from source
         run: |
@@ -22,20 +22,23 @@ jobs:
           git clone --depth 1 https://github.com/jmpews/Dobby.git
           cd Dobby
 
-          # 2. بناء المكتبة الثابتة (dobby_static) لنظام iOS arm64
-          xcodebuild -project Dobby.xcodeproj \
-            -scheme dobby_static \
-            -sdk iphoneos \
-            -configuration Release \
-            -arch arm64 \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO
+          # 2. إعداد البناء لنظام iOS arm64
+          mkdir build && cd build
+          cmake .. \
+            -G "Unix Makefiles" \
+            -DCMAKE_TOOLCHAIN_FILE=../cmake/ios.toolchain.cmake \
+            -DPLATFORM=OS64 \
+            -DDEPLOYMENT_TARGET=12.0 \
+            -DCMAKE_BUILD_TYPE=Release
 
-          # 3. نسخ المكتبة الناتجة إلى جذر المشروع
-          cp build/Build/Products/Release-iphoneos/libdobby.a ../libdobby.a
-          cd ..
+          # 3. بناء الهدف dobby_static
+          make dobby_static -j$(sysctl -n hw.ncpu)
 
-          # 4. التأكد من وجودها
+          # 4. نسخ المكتبة إلى جذر المشروع
+          cp libdobby.a ../../libdobby.a
+          cd ../..
+
+          # 5. التأكد
           file libdobby.a
           echo "تم بناء libdobby.a الحقيقية بنجاح."
 

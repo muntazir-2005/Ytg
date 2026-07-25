@@ -1,9 +1,7 @@
-name: Build Non-JB Dylib
+name: Build Non-JB Dylib (Real Dobby)
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
     branches: [ main, master ]
   workflow_dispatch:
 
@@ -18,34 +16,28 @@ jobs:
       - name: Install ldid
         run: brew install ldid
 
-      - name: Prepare libdobby.a with C++ Symbols (The Ultimate Fix)
+      - name: Build real libdobby.a from source
         run: |
-          # 1. محاولة تحميل المكتبة الأصلية (إن وجدت)
-          curl -sfL -o libdobby.a "https://raw.githubusercontent.com/jmpews/DobbyX/master/libs/libdobby.a" || true
-          
-          # التأكد من صحة الملف، وإلا نقوم بإنشاء مكتبة فارغة لاستقبال الرموز
-          if [ ! -f libdobby.a ] || ! file libdobby.a | grep -q "archive"; then
-            echo "Creating a base archive..."
-            rm -f libdobby.a
-            ar rcs libdobby.a
-          fi
+          # 1. استنساخ مستودع Dobby الرسمي
+          git clone --depth 1 https://github.com/jmpews/Dobby.git
+          cd Dobby
 
-          # 2. إنشاء ملف Objective-C++ (.mm) يحتوي على نفس الدوال المطلوبة
-          echo '#include <stdint.h>' > DobbyStub.mm
-          echo '#include <stdbool.h>' >> DobbyStub.mm
-          echo 'typedef struct { uint64_t hook_vaddr; uint64_t hook_size; uint64_t code_vaddr; uint64_t code_size; uint64_t patched_vaddr; uint64_t original_vaddr; uint64_t instrument_vaddr; uint64_t patch_size; uint64_t patch_hash; void *target_replace; void *instrument_handler; } StaticInlineHookBlock;' >> DobbyStub.mm
-          echo 'bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHookBlock *hookBlockRVA, uint64_t funcRVA, void *funcData, uint64_t targetRVA, void *targetData, uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) { return false; }' >> DobbyStub.mm
-          echo 'int dobby_create_instrument_bridge(void *targetData) { return 0; }' >> DobbyStub.mm
+          # 2. بناء المكتبة الثابتة (dobby_static) لنظام iOS arm64
+          xcodebuild -project Dobby.xcodeproj \
+            -scheme dobby_static \
+            -sdk iphoneos \
+            -configuration Release \
+            -arch arm64 \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO
 
-          # 3. استخراج مسار iOS SDK لضمان بناء الملف لنظام iOS وليس macOS
-          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          # 3. نسخ المكتبة الناتجة إلى جذر المشروع
+          cp build/Build/Products/Release-iphoneos/libdobby.a ../libdobby.a
+          cd ..
 
-          # 4. ترجمة الملف باستخدام clang++ مع تحديد أنه لـ iOS (isysroot)
-          clang++ -arch arm64 -isysroot $SDK_PATH -miphoneos-version-min=14.0 -c DobbyStub.mm -o DobbyStub.o
-
-          # 5. حقن هذه الرموز مباشرة داخل libdobby.a
-          ar qs libdobby.a DobbyStub.o
-          echo "تم حقن الرموز المطلوبة بنجاح وتتوافق الآن مع iOS!"
+          # 4. التأكد من وجودها
+          file libdobby.a
+          echo "تم بناء libdobby.a الحقيقية بنجاح."
 
       - name: Build dylib
         run: make
@@ -55,9 +47,9 @@ jobs:
           mkdir -p output
           cp MyTweak.dylib output/
 
-      - name: Upload dylib artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NonJB-Dylib
+          name: NonJB-Dylib-Real
           path: output/
           retention-days: 7

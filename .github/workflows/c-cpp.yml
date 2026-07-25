@@ -16,31 +16,42 @@ jobs:
       - name: Install dependencies
         run: brew install cmake ldid
 
-      - name: Build real libdobby.a from source
+      - name: Build real libdobby.a from source (iOS arm64)
         run: |
-          # 1. استنساخ مستودع Dobby الرسمي
+          # 1. استنساخ Dobby
           git clone --depth 1 https://github.com/jmpews/Dobby.git
           cd Dobby
 
-          # 2. إعداد البناء لنظام iOS arm64
+          # 2. تحديد SDK والـ Compiler
+          export SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          export CC=$(xcrun --sdk iphoneos -f clang)
+          export CXX=$(xcrun --sdk iphoneos -f clang++)
+
+          # 3. توليد مشروع Xcode باستخدام CMake مع إعدادات iOS
           mkdir build && cd build
-          cmake .. \
-            -G "Unix Makefiles" \
-            -DCMAKE_TOOLCHAIN_FILE=../cmake/ios.toolchain.cmake \
-            -DPLATFORM=OS64 \
-            -DDEPLOYMENT_TARGET=12.0 \
-            -DCMAKE_BUILD_TYPE=Release
+          cmake .. -G Xcode \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=$SDK_PATH \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=$CC \
+            -DCMAKE_CXX_COMPILER=$CXX
 
-          # 3. بناء الهدف dobby_static
-          make dobby_static -j$(sysctl -n hw.ncpu)
+          # 4. بناء المكتبة الثابتة
+          xcodebuild -project Dobby.xcodeproj \
+            -scheme dobby_static \
+            -sdk iphoneos \
+            -configuration Release \
+            -arch arm64 \
+            CODE_SIGNING_ALLOWED=NO
 
-          # 4. نسخ المكتبة إلى جذر المشروع
-          cp libdobby.a ../../libdobby.a
+          # 5. نسخ libdobby.a إلى جذر المشروع
+          cp Release-iphoneos/libdobby.a ../../libdobby.a
           cd ../..
 
-          # 5. التأكد
-          file libdobby.a
           echo "تم بناء libdobby.a الحقيقية بنجاح."
+          file libdobby.a
 
       - name: Build dylib
         run: make

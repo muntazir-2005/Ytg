@@ -1,4 +1,4 @@
-// dobby_real.c
+// dobby_real.mm
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -23,11 +23,11 @@ typedef struct {
 // ARM64 NOP
 static const uint32_t NOP = 0xD503201F;
 
-// ذاكرة احتياطية لنسخ التعليمات الأصلية
 static uint8_t trampoline_page[4096] __attribute__((aligned(4096)));
 
+extern "C" {
+
 int dobby_create_instrument_bridge(void *targetData) {
-    // لا نحتاج جسراً معقداً، فقط نجهز الصفحة
     memset(trampoline_page, 0, sizeof(trampoline_page));
     return 0;
 }
@@ -39,26 +39,25 @@ bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHook
 
     mach_port_t task = mach_task_self();
     vm_address_t addr = (vm_address_t)funcData;
-    vm_size_t size = patchSize ? patchSize : 4; // أقل حجم للتعديل
+    vm_size_t size = patchSize ? patchSize : 4;
 
-    // 1. حفظ التعليمات الأصلية في trampoline_page
+    // حفظ التعليمات الأصلية
     memcpy(trampoline_page, funcData, size);
 
-    // 2. جعل الذاكرة قابلة للكتابة
+    // إزالة الحماية
     vm_protect(task, addr, size, 0, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE);
 
-    // 3. كتابة NOP أو البايتات الجديدة
+    // كتابة NOP أو البايتات الجديدة
     if (patchBytes) {
         memcpy((void*)addr, patchBytes, patchSize);
     } else {
-        // مجرد NOP أول 4 بايت
         *(uint32_t*)addr = NOP;
     }
 
-    // 4. إعادة الحماية الأصلية (قراءة/تنفيذ)
+    // إعادة الحماية
     vm_protect(task, addr, size, 0, VM_PROT_READ | VM_PROT_EXECUTE);
 
-    // 5. تحديث معلومات الكتلة
+    // تحديث كتلة الهوك
     hookBlock->hook_vaddr = funcRVA;
     hookBlock->hook_size = size;
     hookBlock->code_vaddr = targetRVA;
@@ -74,3 +73,5 @@ bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHook
 
     return true;
 }
+
+} // extern "C"

@@ -2,7 +2,7 @@
 # يعتمد على Theos لكن لا يثبت أي شيء في النظام
 
 TARGET := iphone:clang:latest:15.0
-ARCHS := arm64 arm64e
+ARCHS := arm64 
 TARGET_CODESIGN := -
 THEOS_PACKAGE_SCHEME := rootless
 

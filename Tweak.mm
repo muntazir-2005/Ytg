@@ -5,7 +5,7 @@ static void initTweak() {
     const char *binary = "Frameworks/anogs.framework/anogs";
 
     uint64_t offsets[] = {
-        0x1000177C4, 0x10001F568, 0x100032C94,
+        0x1000177C7, 0x10001F568, 0x100032C94,
         0x1000376A4, 0x10004C9AC, 0x10004A130
     };
 

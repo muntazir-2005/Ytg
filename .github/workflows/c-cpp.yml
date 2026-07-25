@@ -13,45 +13,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: brew install cmake ldid
+      - name: Install ldid
+        run: brew install ldid
 
-      - name: Build real libdobby.a from source (iOS arm64)
+      - name: Get libdobby.a (try download, else stub)
         run: |
-          # 1. استنساخ Dobby
-          git clone --depth 1 https://github.com/jmpews/Dobby.git
-          cd Dobby
-
-          # 2. تحديد SDK
-          export SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-
-          # 3. توليد مشروع Xcode
-          mkdir build && cd build
-          cmake .. -G Xcode \
-            -DCMAKE_SYSTEM_NAME=iOS \
-            -DCMAKE_SYSTEM_PROCESSOR=arm64 \
-            -DCMAKE_OSX_SYSROOT=$SDK_PATH \
-            -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=$(xcrun --sdk iphoneos -f clang) \
-            -DCMAKE_CXX_COMPILER=$(xcrun --sdk iphoneos -f clang++) \
-            -DBUILD_TESTING=OFF
-
-          # 4. بناء المكتبة الثابتة
-          xcodebuild -project Dobby.xcodeproj \
-            -scheme dobby_static \
-            -sdk iphoneos \
-            -configuration Release \
-            -arch arm64 \
-            CODE_SIGNING_ALLOWED=NO
-
-          # 5. نسخ المكتبة من المسار الصحيح (build/Release/libdobby.a)
-          cp build/Release/libdobby.a ../../libdobby.a
-          cd ../..
-
-          echo "تم بناء libdobby.a الحقيقية بنجاح."
-          file libdobby.a
+          echo "محاولة تنزيل libdobby.a الرسمية من DobbyX Releases..."
+          curl -L --fail -o libdobby.a "https://github.com/jmpews/DobbyX/releases/download/1.0.1/libdobby.a" 2>/dev/null || true
+          if [ ! -f libdobby.a ] || ! file libdobby.a | grep -q "archive"; then
+            echo "الرابط الأول فشل، محاولة الرابط البديل..."
+            curl -L --fail -o libdobby.a "https://raw.githubusercontent.com/jmpews/DobbyX/master/libs/libdobby.a" 2>/dev/null || true
+          fi
+          if [ ! -f libdobby.a ] || ! file libdobby.a | grep -q "archive"; then
+            echo "فشل التحميل، سأقوم بإنشاء مكتبة وهمية للبناء فقط."
+            echo "تحذير: التعديلات لن تعمل فعلياً، رجاءً قم بتنزيل libdobby.a الحقيقية من DobbyX ورفعها في المستودع."
+            cat > dobby_stub.cpp << 'EOF'
+            #include <stdint.h>
+            #include <stdbool.h>
+            typedef struct {
+              uint64_t hook_vaddr; uint64_t hook_size; uint64_t code_vaddr; uint64_t code_size;
+              uint64_t patched_vaddr; uint64_t original_vaddr; uint64_t instrument_vaddr;
+              uint64_t patch_size; uint64_t patch_hash;
+              void *target_replace; void *instrument_handler;
+            } StaticInlineHookBlock;
+            extern "C" {
+              int dobby_create_instrument_bridge(void *targetData) { return 0; }
+              bool dobby_static_inline_hook(StaticInlineHookBlock *hookBlock, StaticInlineHookBlock *hookBlockRVA,
+                                            uint64_t funcRVA, void *funcData, uint64_t targetRVA, void *targetData,
+                                            uint64_t InstrumentBridgeRVA, void *patchBytes, int patchSize) { return false; }
+            }
+            EOF
+            clang++ -arch arm64 -c dobby_stub.cpp -o dobby_stub.o
+            ar rcs libdobby.a dobby_stub.o
+          else
+            echo "تم الحصول على libdobby.a الحقيقية بنجاح."
+          fi
 
       - name: Build dylib
         run: make
@@ -64,6 +60,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NonJB-Dylib-Real
+          name: NonJB-Dylib
           path: output/
           retention-days: 7

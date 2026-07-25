@@ -25,7 +25,7 @@ jobs:
           # 2. تحديد SDK
           export SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
 
-          # 3. تكوين المشروع مع تحديد المعالج arm64 وتجاوز فحص البيئة
+          # 3. توليد مشروع Xcode
           mkdir build && cd build
           cmake .. -G Xcode \
             -DCMAKE_SYSTEM_NAME=iOS \
@@ -38,7 +38,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=$(xcrun --sdk iphoneos -f clang++) \
             -DBUILD_TESTING=OFF
 
-          # 4. بناء المكتبة الثابتة (الهدف dobby_static)
+          # 4. بناء المكتبة الثابتة
           xcodebuild -project Dobby.xcodeproj \
             -scheme dobby_static \
             -sdk iphoneos \
@@ -46,8 +46,8 @@ jobs:
             -arch arm64 \
             CODE_SIGNING_ALLOWED=NO
 
-          # 5. نسخ المكتبة الناتجة
-          cp Release-iphoneos/libdobby.a ../../libdobby.a
+          # 5. نسخ المكتبة من المسار الصحيح (build/Release/libdobby.a)
+          cp build/Release/libdobby.a ../../libdobby.a
           cd ../..
 
           echo "تم بناء libdobby.a الحقيقية بنجاح."

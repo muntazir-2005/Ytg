@@ -1,0 +1,9 @@
+Package: com.tencent.ig
+Name: MyTweak
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: تخصيص anogs framework
+Maintainer: اسمك
+Author: اسمك
+Section: Tweaks
+Depends: firmware (>= 15.0)

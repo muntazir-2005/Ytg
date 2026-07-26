@@ -1,39 +1,39 @@
-# Makefile النهائي لمشروع Non-JB Tweak
-# يعتمد على Theos، يبني arm64 فقط، ويربط مع libdobby.a المعدلة
+# Makefile - Theos من أجل Non‑JB
+# ينتج dylib فقط للحقن في تطبيقات IPA
 
 TARGET := iphone:clang:latest:15.0
 ARCHS := arm64
-TARGET_CODESIGN := ldid
-THEOS_PACKAGE_SCHEME := rootless
+# يُفضل دائماً وضعها 0 لإنتاج ملف بحجم أصغر وأكثر استقراراً
+DEBUG = 0
+FINALPACKAGE = 1
 
-# لا ننتج حزمة deb، فقط dylib (سيتم نسخها يدويًا في after-build)
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME := MyTweak
 
-# ملفات المصدر (أضف أي ملفات إضافية هنا)
+# ملفات المصدر
 MyTweak_FILES := Tweak.xm PatchNonJB.mm
 
-# أعلام المترجم
+# أعلام الترجمة
 MyTweak_CFLAGS := -I. \
 	-Wno-incomplete-implementation -Wno-deprecated-declarations \
 	-Wno-unused-function -Wno-unused-variable -Wno-format
 
-# ربط المكتبات: libdobby.a (الموجودة في الجذر) + libc++
+# ربط المكتبات (تضمين Dobby ممتاز هنا للـ Non-JB)
 MyTweak_LDFLAGS := -L. -ldobby -lc++ -Wl,-segalign,4000
-
-# الأطر المطلوبة
 MyTweak_FRAMEWORKS := Foundation
 
-# مسار التثبيت (لن يُستخدم فعليًا في non-jb، لكن Theos يحتاجه)
-MyTweak_INSTALL_PATH := /var/jb/Library/MobileSubstrate/DynamicLibraries
+# إخبار Theos بتوقيع الأداة بالصلاحيات تلقائياً أثناء البناء
+MyTweak_CODESIGN_FLAGS := -Sentitlements.plist
+
+# مسار التثبيت (يفضل استخدام @executable_path لتطبيقات الـ Non-JB)
+MyTweak_INSTALL_PATH := @executable_path
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
-# نسخ الملف الناتج إلى مجلد output/ بعد البناء
+# بعد البناء: نسخ dylib الجاهز والمُوقع إلى output/
 after-build::
-	@echo "==> تم بناء التعديل بنجاح (Non-JB)."
-	@echo "==> الملف الجاهز للحقن: .theos/obj/MyTweak.dylib"
+	@echo "==> نسخ الملف إلى output/"
 	@mkdir -p output
-	cp .theos/obj/MyTweak.dylib output/
-	@echo "==> تم نسخ dylib إلى مجلد output/"
+	@cp $(THEOS_OBJ_DIR)/MyTweak.dylib output/
+	@echo "==> تم بناء وتوقيع MyTweak.dylib (Non‑JB) بنجاح"

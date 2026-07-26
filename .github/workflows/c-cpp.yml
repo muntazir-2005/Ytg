@@ -55,6 +55,10 @@ jobs:
             rm -rf /tmp/sdks
           fi
 
+      # تم إضافة هذه الخطوة لحل مشكلة ldid: command not found
+      - name: Install ldid
+        run: brew install ldid
+
       - name: Compile Dylib
         run: |
           make clean

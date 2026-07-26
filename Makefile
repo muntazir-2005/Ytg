@@ -1,5 +1,5 @@
 # Makefile - Theos (Non‑JB)
-# بناء dylib ديناميكي مع التقاط كافة الملفات واستبعاد ما لا يلزم
+# بناء dylib ديناميكي مع التقاط كافة الملفات واستبعاد ما لا يلزم وإصلاح تحذيرات الرابط
 
 TARGET := iphone:clang:latest:15.0
 ARCHS := arm64
@@ -21,8 +21,9 @@ MyTweak_CFLAGS := -I. -IESP \
 	-Wno-incomplete-implementation -Wno-deprecated-declarations \
 	-Wno-unused-function -Wno-unused-variable -Wno-format
 
-# 4. ربط مكتبة Dobby الثابتة (libdobby.a) وإعدادات التوافق
-MyTweak_LDFLAGS := -L. -ldobby -lc++ -Wl,-segalign,4000
+# 4. ربط مكتبة Dobby وإصلاح تحذيرات (duplicate libraries) و (obsolete flags)
+# تم حذف -lc++ وتمت إضافة -Wl,-ld_classic للتعامل مع Xcode 15
+MyTweak_LDFLAGS := -L. -ldobby -Wl,-segalign,4000 -Wl,-ld_classic
 MyTweak_FRAMEWORKS := Foundation UIKit
 
 # 5. التوقيع التلقائي بملف الصلاحيات
@@ -36,4 +37,4 @@ after-build::
 	@echo "==> جاري نسخ الملف النهائي إلى output/"
 	@mkdir -p output
 	@cp $(THEOS_OBJ_DIR)/MyTweak.dylib output/
-	@echo "==> تم البناء والتوقيع بنجاح!"
+	@echo "==> تم البناء والتوقيع بنجاح بدون تحذيرات!"

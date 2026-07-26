@@ -16,6 +16,10 @@ on:
         - release
         - debug
 
+# تحديد الصلاحيات كأفضل ممارسة أمنية
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Dynamic Library (.dylib)
@@ -25,13 +29,17 @@ jobs:
       THEOS: ${{ github.workspace }}/theos
 
     steps:
-      # 1. جلب الكود المصدري للمشروع
       - name: 1. Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # 2. تسريع عملية البناء عن طريق تخزين Theos و SDKs مؤقتاً
+      # تحديد إصدار Xcode لضمان استقرار البناء
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.2'
+
       - name: 2. Cache Theos and SDKs
         id: cache-theos
         uses: actions/cache@v4
@@ -43,7 +51,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-theos-v2-
 
-      # 3. إعداد بيئة Theos
       - name: 3. Setup Theos Environment
         run: |
           if [ ! -d "$THEOS" ]; then
@@ -53,7 +60,6 @@ jobs:
             echo "Theos already exists from cache."
           fi
 
-      # 4. تحميل SDKs الخاصة بنظام iOS
       - name: 4. Download iOS SDKs
         run: |
           if [ ! -d "$THEOS/sdks/iPhoneOS16.5.sdk" ] && [ ! -d "$THEOS/sdks/iPhoneOS14.5.sdk" ]; then
@@ -66,40 +72,39 @@ jobs:
             echo "SDKs already cached."
           fi
 
-      # 4.5 تثبيت أحدث إصدار من ldid
       - name: Install Latest ldid
         run: |
           brew install ldid
 
-      # 5. بناء الملف المصدري وتجميعه (.dylib)
       - name: 5. Compile Dynamic Library (.dylib)
         run: |
           echo "Cleaning existing build files..."
           make clean
           
           echo "Starting compilation process..."
-          if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
+          # استخدام inputs مباشرة. إذا كان فارغاً (في حالة Push)، سيعتبره release
+          BUILD_TYPE="${{ inputs.build_type }}"
+          
+          if [ "$BUILD_TYPE" = "debug" ]; then
             make DEBUG=1
           else
             make FINALPACKAGE=1
           fi
 
-      # 6. تنظيم واستخراج الملفات المجمّعة
       - name: 6. Organize Build Artifacts
         run: |
           mkdir -p output
-          # نسخ ملفات dylib الناتجة
+          # البحث الشامل والنسخ لتفادي أي تغييرات في الـ Makefile
           find .theos/obj/ -name "*.dylib" -exec cp {} output/ \; 2>/dev/null || true
-          # نسخ حزم deb في حال وجودها
           find packages/ -name "*.deb" -exec cp {} output/ \; 2>/dev/null || true
           
           echo "Output files ready:"
           ls -la output/
 
-      # 7. رفع ملف .dylib النهائي كـ Artifact قابل للتحميل
       - name: 7. Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: iOS-Dylib-Artifacts
           path: output/
           retention-days: 7
+          if-no-files-found: error # سيفشل الإجراء إذا لم يتم العثور على ملفات للرفع

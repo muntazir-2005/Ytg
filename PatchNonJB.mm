@@ -24,7 +24,7 @@ uint64_t va2rva(struct mach_header_64* header, uint64_t va)
 {
     uint64_t rva = va;
     
-    uint64_t header_vaddr = -1;
+    uint64_t header_vaddr = UINT64_MAX; // تم الإصلاح هنا
     struct load_command* lc = (struct load_command*)((UInt64)header + sizeof(*header));
     for (int i = 0; i < header->ncmds; i++) {
         
@@ -34,7 +34,7 @@ uint64_t va2rva(struct mach_header_64* header, uint64_t va)
             
             if(seg->fileoff==0 && seg->filesize>0)
             {
-                if(header_vaddr != -1) {
+                if(header_vaddr != UINT64_MAX) { // تم الإصلاح هنا
                     return 0;
                 }
                 header_vaddr = seg->vmaddr;
@@ -44,7 +44,7 @@ uint64_t va2rva(struct mach_header_64* header, uint64_t va)
         lc = (struct load_command *) ((char *)lc + lc->cmdsize);
     }
     
-    if(header_vaddr != -1) {
+    if(header_vaddr != UINT64_MAX) { // تم الإصلاح هنا
         rva -= header_vaddr;
     }
     
@@ -53,7 +53,7 @@ uint64_t va2rva(struct mach_header_64* header, uint64_t va)
 
 void* rva2data(struct mach_header_64* header, uint64_t rva)
 {
-    uint64_t header_vaddr = -1;
+    uint64_t header_vaddr = UINT64_MAX; // تم الإصلاح هنا
     struct load_command* lc = (struct load_command*)((UInt64)header + sizeof(*header));
     for (int i = 0; i < header->ncmds; i++) {
         
@@ -63,7 +63,7 @@ void* rva2data(struct mach_header_64* header, uint64_t rva)
             
             if(seg->fileoff==0 && seg->filesize>0)
             {
-                if(header_vaddr != -1) {
+                if(header_vaddr != UINT64_MAX) { // تم الإصلاح هنا
                     return NULL;
                 }
                 header_vaddr = seg->vmaddr;
@@ -73,7 +73,7 @@ void* rva2data(struct mach_header_64* header, uint64_t rva)
         lc = (struct load_command *) ((char *)lc + lc->cmdsize);
     }
     
-    if(header_vaddr != -1) {
+    if(header_vaddr != UINT64_MAX) { // تم الإصلاح هنا
         rva += header_vaddr;
     }
     
@@ -260,6 +260,7 @@ NSMutableData* add_hook_section(NSMutableData* macho)
     patch += sizeof(data_sec);
     
     memcpy(patch, cmds+linkedit_cmd_offset, header->sizeofcmds-linkedit_cmd_offset);
+    free(cmds); // تم الإصلاح: تحرير الذاكرة هنا لمنع التسريب
     
     linkedit_seg = (struct segment_command_64*)patch;
     
@@ -358,6 +359,8 @@ NSMutableData* add_hook_section(NSMutableData* macho)
 bool hex2bytes(const char* bytes, unsigned char* buffer)
 {
     size_t len=strlen(bytes);
+    if (len % 2 != 0) return false; // تم الإصلاح: التحقق من أن السلسلة النصية طولها زوجي
+    
     for(int i=0; i<len; i++) {
         char _byte = bytes[i];
         if(_byte>='0' && _byte<='9')
@@ -510,7 +513,8 @@ NSString* InitOffsetForPatchHook(const char* machoPath, uint64_t vaddr, const ch
                 int codesize = dobby_create_instrument_bridge(targetData);
                 
                 targetRVA += codesize;
-                *(uint64_t*)&targetData += codesize;
+                // تم الإصلاح: تصحيح العمليات الحسابية للمؤشرات لتجنب كراش الـ Strict Aliasing
+                targetData = (void*)((uintptr_t)targetData + codesize);
             }
             else
             {
@@ -546,7 +550,9 @@ NSString* InitOffsetForPatchHook(const char* machoPath, uint64_t vaddr, const ch
         return NSSENCRYPT("can not write to files");
     
     gStaticInlineHookMachO[path] = savePath;
-    return NSSENCRYPT("The offset has not been patched");
+    
+    // تم الإصلاح: إرجاع nil هنا بدلاً من رسالة خطأ لأن العملية تمت بنجاح
+    return nil;
 }
 
 
@@ -646,4 +652,3 @@ void* HookOffset(const char* machoPath, uint64_t vaddr, void* replace)
     hookBlock->target_replace = replace;
     return (void*)((uint64_t)base + hookBlock->original_vaddr);
 }
-
